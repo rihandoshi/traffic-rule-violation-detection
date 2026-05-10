@@ -72,6 +72,7 @@ mlruns/
 # --- Large model weights (keep repo small; ship weights separately or use Git LFS) ---
 # Adjust if your team commits small models on purpose.
 models/**/*.pt
+*.pt
 models/**/*.onnx
 models/**/*.pth
 models/**/*.engine
