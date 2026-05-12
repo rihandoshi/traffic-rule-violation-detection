@@ -9,19 +9,11 @@ import numpy as np
 from ultralytics import YOLO
 
 
-def find_project_root() -> Path:
-    here = Path(__file__).resolve()
-    for p in [here.parent, *here.parents]:
-        if (p / "test_images").is_dir() and (p / "src").is_dir():
-            return p
-    return Path.cwd().resolve()
-
-
-PROJECT_ROOT = find_project_root()
+PROJECT_ROOT = Path(r"D:/Projects/CV Project")
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.association.assign import associate_riders_to_bikes  # noqa: E402
+from src.association.assign import associate_riders_to_bikes 
 
 PERSON = 0
 BICYCLE = 1
@@ -29,19 +21,18 @@ MOTORCYCLE = 3
 TARGET_CLASSES = [PERSON, BICYCLE, MOTORCYCLE]
 
 COLORS = {
-    PERSON: (0, 255, 0),        # green
-    BICYCLE: (0, 165, 255),     # orange
-    MOTORCYCLE: (255, 0, 255),  # magenta
+    PERSON: (0, 255, 0),  
+    BICYCLE: (0, 165, 255),   
+    MOTORCYCLE: (255, 0, 255),  
 }
 
 
-def load_model() -> YOLO:
-    model_dir = PROJECT_ROOT / "models"
-    weights = model_dir / "yolov8n.pt"
+def load_model():
+    weights = PROJECT_ROOT / "models" / "yolov8n.pt"
     if not weights.is_file():
-        weights = PROJECT_ROOT / "src" / "detection" / "yolov8n.pt"
-    if not weights.is_file():
-        weights = Path("yolov8n.pt")
+        raise FileNotFoundError(
+            f"Expected weights at '{weights}'. Keep a single copy in models/."
+        )
     print("Using weights:", weights.resolve())
     return YOLO(str(weights))
 
@@ -51,7 +42,7 @@ def draw_detection_boxes(
     results,
     names: dict,
     conf_threshold: float = 0.25,
-) -> np.ndarray:
+):
     out = image_bgr.copy()
     r = results[0]
     if r.boxes is None or len(r.boxes) == 0:
@@ -84,9 +75,9 @@ def draw_detection_boxes(
     return out
 
 
-def parse_boxes(results, conf_threshold: float = 0.25) -> Tuple[List[Tuple[Tuple[float, float, float, float], float]], List[Tuple[Tuple[float, float, float, float], float]]]:
-    bike_boxes: List[Tuple[Tuple[float, float, float, float], float]] = []
-    rider_boxes: List[Tuple[Tuple[float, float, float, float], float]] = []
+def parse_boxes(results, conf_threshold: float = 0.25):
+    bike_boxes = []
+    rider_boxes = []
 
     r = results[0]
     if r.boxes is None:
@@ -106,12 +97,12 @@ def parse_boxes(results, conf_threshold: float = 0.25) -> Tuple[List[Tuple[Tuple
     return bike_boxes, rider_boxes
 
 
-def draw_association_overlay(image_bgr: np.ndarray, groups: list) -> np.ndarray:
+def draw_association_overlay(image_bgr: np.ndarray, groups: list):
     out = image_bgr.copy()
     for idx, group in enumerate(groups):
         bx1, by1, bx2, by2 = map(int, group["bike_bbox"])
         riders = group["riders"]
-        bike_color = (255, 255, 0)  # cyan
+        bike_color = (255, 255, 0) # The color will be blue
         cv2.rectangle(out, (bx1, by1), (bx2, by2), bike_color, 2)
         cv2.putText(
             out,
@@ -140,7 +131,7 @@ def draw_association_overlay(image_bgr: np.ndarray, groups: list) -> np.ndarray:
     return out
 
 
-def main() -> None:
+def main():
     model = load_model()
 
     image_name = "6.jpg"
@@ -149,8 +140,17 @@ def main() -> None:
     if image_bgr is None:
         raise FileNotFoundError(f"Image not found: {image_path}")
 
-    conf = 0.25
-    results = model.predict(source=image_bgr, classes=TARGET_CLASSES, conf=conf, verbose=False)
+    # Lower conf + higher imgsz can improve small bike recall. 
+    # TODO fine tune this later
+    conf = 0.20
+    imgsz = 960
+    results = model.predict(
+        source=image_bgr,
+        classes=TARGET_CLASSES,
+        conf=conf,
+        imgsz=imgsz,
+        verbose=False,
+    )
 
     det_vis = draw_detection_boxes(image_bgr, results, model.names, conf_threshold=conf)
     bike_boxes, rider_boxes = parse_boxes(results, conf_threshold=conf)
@@ -167,6 +167,7 @@ def main() -> None:
 
     print(f"Detected bikes/two-wheelers: {len(bike_boxes)}")
     print(f"Detected riders/persons: {len(rider_boxes)}")
+    print(f"Run config: conf={conf}, imgsz={imgsz}")
     print("Association summary:")
     for i, group in enumerate(groups):
         print(f"  bike_{i}: riders={len(group['riders'])}")
