@@ -28,7 +28,7 @@ COLORS = {
 
 
 def load_model():
-    weights = PROJECT_ROOT / "models" / "yolov8n.pt"
+    weights = PROJECT_ROOT / "models" / "yolov8s.pt"
     if not weights.is_file():
         raise FileNotFoundError(
             f"Expected weights at '{weights}'. Keep a single copy in models/."
