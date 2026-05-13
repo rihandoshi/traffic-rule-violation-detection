@@ -18,8 +18,8 @@ def bottom_center_inside_box(
     person_box_xyxy: BBox,
     bike_box_xyxy: BBox,
     inclusive: bool = True,
-) -> bool:
-    """Check whether rider bottom-center lies inside bike box."""
+):
+    # Here we should check is rider ka bottom center lies inside the bike box
     return point_inside_box(bbox_bottom_center(person_box_xyxy), bike_box_xyxy, inclusive=inclusive)
 
 
@@ -30,23 +30,18 @@ def associate_riders_to_bikes(
     image_height: int,
     bike_expand_ratio: float = 0.2,
     min_iou_for_candidate: float = 0.01,
-) -> List[Dict[str, Any]]:
-    """
-    Assign each rider to at most one bike.
-
-    Strategy:
-    1) Expand bike box
-    2) Candidate if rider bottom-center is in expanded bike box OR IoU > threshold
-    3) If multiple candidates, choose highest IoU, then nearest bike center
-    """
-    normalized_bikes: List[Tuple[BBox, float]] = [
+):
+    # Strategy: We assign one rider to one bike. So we expand bike box by a little, then if rider ka bottom 
+    # center is in the expanded box or if the iou > 0.01 in this case then we those that. 
+    # If more than one then highest iou or nearst bike center.
+    normalized_bikes = [
         (normalize_bbox_xyxy(bbox), float(score)) for bbox, score in bike_boxes
     ]
-    normalized_riders: List[Tuple[BBox, float]] = [
+    normalized_riders= [
         (normalize_bbox_xyxy(bbox), float(score)) for bbox, score in rider_boxes
     ]
 
-    groups: List[Dict[str, Any]] = [
+    groups = [
         {
             "bike_bbox": [float(v) for v in bike_bbox],
             "bike_score": bike_score,
@@ -56,7 +51,7 @@ def associate_riders_to_bikes(
     ]
 
     for rider_idx, (rider_bbox, rider_score) in enumerate(normalized_riders):
-        candidates: List[Tuple[int, float, float]] = []  # (bike_idx, iou, distance)
+        candidates = [] 
         rider_center = bbox_center(rider_bbox)
 
         for bike_idx, (bike_bbox, _bike_score) in enumerate(normalized_bikes):
@@ -79,7 +74,7 @@ def associate_riders_to_bikes(
         if not candidates:
             continue
 
-        # max IoU first, then min distance
+        # max iou first to assign , then we check min distance
         best_bike_idx = sorted(candidates, key=lambda x: (-x[1], x[2]))[0][0]
         groups[best_bike_idx]["riders"].append(
             {
