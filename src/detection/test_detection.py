@@ -13,7 +13,9 @@ PROJECT_ROOT = Path(r"D:/Projects/CV Project")
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.association.assign import associate_riders_to_bikes 
+from src.association.assign import associate_riders_to_bikes
+from src.detection.helmets import HelmetDetector
+from src.utils.image import crop_xyxy
 
 PERSON = 0
 BICYCLE = 1
@@ -97,7 +99,7 @@ def parse_boxes(results, conf_threshold: float = 0.25):
     return bike_boxes, rider_boxes
 
 
-def draw_association_overlay(image_bgr: np.ndarray, groups: list):
+def draw_association_overlay(image_bgr: np.ndarray, groups: list, original_bgr: np.ndarray = None, helmet_detector=None):
     out = image_bgr.copy()
     for idx, group in enumerate(groups):
         bx1, by1, bx2, by2 = map(int, group["bike_bbox"])
@@ -117,14 +119,28 @@ def draw_association_overlay(image_bgr: np.ndarray, groups: list):
 
         for rider in riders:
             x1, y1, x2, y2 = map(int, rider["bbox"])
-            cv2.rectangle(out, (x1, y1), (x2, y2), (0, 255, 255), 2)
+            
+            has_helmet_text = ""
+            box_color = (0, 255, 255) # Yellow default
+            
+            if original_bgr is not None and helmet_detector is not None:
+                crop = crop_xyxy(original_bgr, rider["bbox"])
+                has_helmet = helmet_detector.predict(crop)
+                if has_helmet:
+                    has_helmet_text = " (Helmet)"
+                    box_color = (0, 255, 0) # Green
+                else:
+                    has_helmet_text = " (No Helmet)"
+                    box_color = (0, 0, 255) # Red
+
+            cv2.rectangle(out, (x1, y1), (x2, y2), box_color, 2)
             cv2.putText(
                 out,
-                f"r{rider['rider_index']}",
+                f"r{rider['rider_index']}{has_helmet_text}",
                 (x1, max(y1 - 6, 15)),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.45,
-                (0, 255, 255),
+                box_color,
                 1,
                 cv2.LINE_AA,
             )
@@ -134,14 +150,14 @@ def draw_association_overlay(image_bgr: np.ndarray, groups: list):
 def main():
     model = load_model()
 
-    image_name = "6.jpg"
+    image_name = "4.jpg"
     image_path = PROJECT_ROOT / "test_images" / image_name
     image_bgr = cv2.imread(str(image_path))
     if image_bgr is None:
         raise FileNotFoundError(f"Image not found: {image_path}")
 
     # Lower conf + higher imgsz can improve small bike recall. 
-    # TODO fine tune this later
+    # TODO fine tune this later pls dont forget
     conf = 0.20
     imgsz = 960
     results = model.predict(
@@ -172,7 +188,12 @@ def main():
     for i, group in enumerate(groups):
         print(f"  bike_{i}: riders={len(group['riders'])}")
 
-    assoc_vis = draw_association_overlay(det_vis, groups)
+    helmet_weights = PROJECT_ROOT / "models" / "helmet_yolov8s.pt"
+    if not helmet_weights.is_file():
+        helmet_weights = PROJECT_ROOT / "models" / "yolov8s.pt" 
+    helmet_detector = HelmetDetector(weights_path=helmet_weights)
+
+    assoc_vis = draw_association_overlay(det_vis, groups, image_bgr, helmet_detector)
     output_dir = PROJECT_ROOT / "outputs"
     output_dir.mkdir(parents=True, exist_ok=True)
     out_path = output_dir / "association_debug.jpg"
