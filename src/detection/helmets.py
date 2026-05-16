@@ -33,16 +33,25 @@ class HelmetDetector:
         self.is_classification = hasattr(self.model.model, 'names') and 'helmet' in str(self.model.model.names).lower()
         
 
-    def predict(self, rider_crop_bgr: np.ndarray):
+    def predict(self, rider_crop_bgr):
         
         if rider_crop_bgr.size == 0:
             return False
 
+        h, w = rider_crop_bgr.shape[:2]
+        crop_size = max(h, w)
+        
+        # We lower confidence requirement for tiny riders koz blurry things can make it hard to detect helmets so false negatives can happen
+        dynamic_conf = self.conf_threshold
+        if crop_size < 80:
+            dynamic_conf = max(0.10, self.conf_threshold - 0.10)
+
         results = self.model.predict(
             source=rider_crop_bgr,
-            conf=self.conf_threshold,
+            conf=dynamic_conf,
             imgsz=self.imgsz,
             device=self.device,
+            half=(self.device != "cpu"),
             verbose=False,
         )
 

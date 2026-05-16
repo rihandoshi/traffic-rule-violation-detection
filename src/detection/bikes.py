@@ -16,26 +16,28 @@ class BikeDetector:
 
     def __init__(
         self,
-        weights_path: str | Path,
-        device: str = "cpu",
-        conf_threshold: float = 0.2,
-        imgsz: int = 960,
+        weights_path,
+        device= "cpu",
+        conf_threshold= 0.2,
+        imgsz= 960,
     ):
         self.model = YOLO(str(weights_path))
         self.device = device
         self.conf_threshold = conf_threshold
         self.imgsz = imgsz
 
-    def predict(self, image_bgr: np.ndarray):
+    def predict(self, image_bgr, imgsz=None):
+        target_imgsz = imgsz if imgsz is not None else self.imgsz
         results = self.model.predict(
             source=image_bgr,
             classes=list(self.TWO_WHEELER_CLASS_IDS),
             conf=self.conf_threshold,
-            imgsz=self.imgsz,
+            imgsz=target_imgsz,
             device=self.device,
+            half=(self.device != "cpu"),
             verbose=False,
         )
-        out: List[Tuple[BBox, float, str]] = []
+        out = []
         boxes = results[0].boxes
         if boxes is None:
             return out

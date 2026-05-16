@@ -15,7 +15,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.association.assign import associate_riders_to_bikes
 from src.detection.helmets import HelmetDetector
-from src.utils.image import crop_xyxy
+from src.depth.estimator import DepthEstimator
+from src.utils.image import crop_xyxy, enhance_image_for_detection
 
 PERSON = 0
 BICYCLE = 1
@@ -150,26 +151,36 @@ def draw_association_overlay(image_bgr: np.ndarray, groups: list, original_bgr: 
 def main():
     model = load_model()
 
-    image_name = "4.jpg"
+    image_name = "2.jpg"
     image_path = PROJECT_ROOT / "test_images" / image_name
     image_bgr = cv2.imread(str(image_path))
     if image_bgr is None:
         raise FileNotFoundError(f"Image not found: {image_path}")
 
+    h, w = image_bgr.shape[:2]
+    imgsz = max(640, min(1280, max(h, w)))
+    imgsz = int((imgsz + 31) // 32 * 32)
+    
+    enhanced_bgr = enhance_image_for_detection(image_bgr)
+
     # Lower conf + higher imgsz can improve small bike recall. 
     # TODO fine tune this later pls dont forget
     conf = 0.20
-    imgsz = 960
     results = model.predict(
-        source=image_bgr,
+        source=enhanced_bgr,
         classes=TARGET_CLASSES,
         conf=conf,
         imgsz=imgsz,
+        half=(model.device.type != "cpu"),
         verbose=False,
     )
 
     det_vis = draw_detection_boxes(image_bgr, results, model.names, conf_threshold=conf)
     bike_boxes, rider_boxes = parse_boxes(results, conf_threshold=conf)
+
+    # Using depth anything model to better differentiate for things like walking pedestrians from a moving bike 
+    depth_estimator = DepthEstimator(cache_dir=str(PROJECT_ROOT / "models"))
+    depth_map = depth_estimator.predict(enhanced_bgr)
 
     h, w = image_bgr.shape[:2]
     groups = associate_riders_to_bikes(
@@ -179,10 +190,12 @@ def main():
         image_height=h,
         bike_expand_ratio=0.2,
         min_iou_for_candidate=0.01,
+        depth_map=depth_map,
+        max_depth_diff=80.0,
     )
 
-    print(f"Detected bikes/two-wheelers: {len(bike_boxes)}")
-    print(f"Detected riders/persons: {len(rider_boxes)}")
+    print(f"Detected bikes: {len(bike_boxes)}")
+    print(f"Detected riders or ppl maybe: {len(rider_boxes)}")
     print(f"Run config: conf={conf}, imgsz={imgsz}")
     print("Association summary:")
     for i, group in enumerate(groups):
@@ -196,9 +209,16 @@ def main():
     assoc_vis = draw_association_overlay(det_vis, groups, image_bgr, helmet_detector)
     output_dir = PROJECT_ROOT / "outputs"
     output_dir.mkdir(parents=True, exist_ok=True)
+    
     out_path = output_dir / "association_debug.jpg"
     cv2.imwrite(str(out_path), assoc_vis)
     print(f"Saved debug visualization: {out_path}")
+    
+    if depth_map is not None:
+        depth_vis = cv2.applyColorMap(depth_map.astype(np.uint8), cv2.COLORMAP_INFERNO)
+        depth_out_path = output_dir / "depth_debug.jpg"
+        cv2.imwrite(str(depth_out_path), depth_vis)
+        print(f"Saved depth visualization: {depth_out_path}")
 
 
 if __name__ == "__main__":

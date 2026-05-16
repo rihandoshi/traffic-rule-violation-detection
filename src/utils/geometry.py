@@ -5,7 +5,7 @@ from typing import Tuple
 BBox = Tuple[float, float, float, float]
 
 
-def clamp_bbox_xyxy(box: BBox, width: int, height: int) -> BBox:
+def clamp_bbox_xyxy(box, width, height):
     """Clamp an XYXY box to image boundaries."""
     x1, y1, x2, y2 = box
     x1 = max(0.0, min(float(width - 1), x1))
@@ -15,7 +15,7 @@ def clamp_bbox_xyxy(box: BBox, width: int, height: int) -> BBox:
     return x1, y1, x2, y2
 
 
-def normalize_bbox_xyxy(box: BBox) -> BBox:
+def normalize_bbox_xyxy(box):
     """Ensure x1 <= x2 and y1 <= y2."""
     x1, y1, x2, y2 = box
     left, right = sorted((float(x1), float(x2)))
@@ -23,21 +23,21 @@ def normalize_bbox_xyxy(box: BBox) -> BBox:
     return left, top, right, bottom
 
 
-def bbox_center(box: BBox) -> Tuple[float, float]:
+def bbox_center(box):
     x1, y1, x2, y2 = normalize_bbox_xyxy(box)
     return (x1 + x2) / 2.0, (y1 + y2) / 2.0
 
 
-def bbox_bottom_center(box: BBox) -> Tuple[float, float]:
+def bbox_bottom_center(box):
     x1, _y1, x2, y2 = normalize_bbox_xyxy(box)
     return (x1 + x2) / 2.0, y2
 
 
 def point_inside_box(
-    point_xy: Tuple[float, float],
-    box_xyxy: BBox,
-    inclusive: bool = True,
-) -> bool:
+    point_xy,
+    box_xyxy,
+    inclusive = True,
+):
     cx, cy = point_xy
     x1, y1, x2, y2 = normalize_bbox_xyxy(box_xyxy)
     if inclusive:
@@ -45,7 +45,7 @@ def point_inside_box(
     return x1 < cx < x2 and y1 < cy < y2
 
 
-def expand_bbox_xyxy(box: BBox, width: int, height: int, margin_ratio: float = 0.2) -> BBox:
+def expand_bbox_xyxy(box, width, height, margin_ratio = 0.2):
     """Expand a box by margin_ratio on both axes, then clamp."""
     x1, y1, x2, y2 = normalize_bbox_xyxy(box)
     bw = max(1.0, x2 - x1)
@@ -56,7 +56,7 @@ def expand_bbox_xyxy(box: BBox, width: int, height: int, margin_ratio: float = 0
     return clamp_bbox_xyxy(expanded, width=width, height=height)
 
 
-def iou_xyxy(a: BBox, b: BBox) -> float:
+def iou_xyxy(a, b):
     ax1, ay1, ax2, ay2 = normalize_bbox_xyxy(a)
     bx1, by1, bx2, by2 = normalize_bbox_xyxy(b)
 
@@ -77,7 +77,7 @@ def iou_xyxy(a: BBox, b: BBox) -> float:
     return inter_area / union
 
 
-def euclidean_distance_xy(p1: Tuple[float, float], p2: Tuple[float, float]) -> float:
+def euclidean_distance_xy(p1, p2):
     dx = p1[0] - p2[0]
     dy = p1[1] - p2[1]
     return (dx * dx + dy * dy) ** 0.5
