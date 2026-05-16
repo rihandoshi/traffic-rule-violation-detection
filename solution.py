@@ -85,7 +85,7 @@ class TrafficViolationDetector:
             )
 
             # Final rule violations check
-            violations: List[Dict[str, int | str]] = []
+            violations = []
             for g in groups:
                 num_riders = len(g["riders"])
                 helmet_violations = 0
