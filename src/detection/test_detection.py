@@ -31,7 +31,7 @@ COLORS = {
 
 
 def load_model():
-    weights = PROJECT_ROOT / "models" / "yolov8s.pt"
+    weights = PROJECT_ROOT / "models" / "yolov8m.pt"
     if not weights.is_file():
         raise FileNotFoundError(
             f"Expected weights at '{weights}'. Keep a single copy in models/."
@@ -203,7 +203,7 @@ def main():
 
     helmet_weights = PROJECT_ROOT / "models" / "helmet_yolov8s.pt"
     if not helmet_weights.is_file():
-        helmet_weights = PROJECT_ROOT / "models" / "yolov8s.pt" 
+        helmet_weights = PROJECT_ROOT / "models" / "yolov8m.pt" 
     helmet_detector = HelmetDetector(weights_path=helmet_weights)
 
     assoc_vis = draw_association_overlay(det_vis, groups, image_bgr, helmet_detector)
