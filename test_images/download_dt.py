@@ -4,4 +4,4 @@ project = rf.workspace("roboflow-universe-projects").project("license-plate-reco
 version = project.version(1)
 dataset = version.download("yolov8")
 print(dataset.location)
-                
+    

@@ -10,6 +10,7 @@ from src.detection.helmets import HelmetDetector
 from src.depth.estimator import DepthEstimator
 from src.utils.image import load_image_bgr, crop_xyxy, enhance_image_for_detection
 import numpy as np
+import cv2
 from src.detection.license_plate import LPDetector
 from src.ocr.reader import OCRReader
 
@@ -40,8 +41,8 @@ class TrafficViolationDetector:
             )
         self.lp_detector = LPDetector(
             weights_path=lp_weights_path,
-            conf_threshold=0.25,
-            imgsz=960,
+            conf_threshold=0.10,
+            imgsz=1280,
         )
         self.ocr_reader = OCRReader()
 
@@ -116,6 +117,7 @@ class TrafficViolationDetector:
                     bike_crop = crop_xyxy(image_bgr, g["bike_bbox"])
 
                     plate_preds = self.lp_detector.predict(bike_crop)
+                    print("License plate predictions:", plate_preds)
 
                     plate_text = ""
 
@@ -123,9 +125,16 @@ class TrafficViolationDetector:
                         best_plate = max(plate_preds, key=lambda x: x[1])
 
                         plate_bbox = best_plate[0]
-
-                        plate_crop = crop_xyxy(bike_crop, plate_bbox)
-
+                        x1, y1, x2, y2 = map(int, plate_bbox)
+                        pad_x = int((x2 - x1) * 0.15)
+                        pad_y = int((y2 - y1) * 0.25)
+                        x1 = max(0, x1 - pad_x)
+                        y1 = max(0, y1 - pad_y)
+                        x2 = min(bike_crop.shape[1], x2 + pad_x)
+                        y2 = min(bike_crop.shape[0], y2 + pad_y)
+                        expanded_bbox = (x1, y1, x2, y2)
+                        plate_crop = crop_xyxy(bike_crop, expanded_bbox)
+                        cv2.imwrite("plate_crop.jpg", plate_crop)  
                         plate_text = self.ocr_reader.extract_text(plate_crop)
 
                     violations.append(
