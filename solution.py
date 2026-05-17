@@ -10,6 +10,8 @@ from src.detection.helmets import HelmetDetector
 from src.depth.estimator import DepthEstimator
 from src.utils.image import load_image_bgr, crop_xyxy, enhance_image_for_detection
 import numpy as np
+from src.detection.license_plate import LPDetector
+from src.ocr.reader import OCRReader
 
 
 class TrafficViolationDetector:
@@ -29,6 +31,19 @@ class TrafficViolationDetector:
         if not helmet_weights_path.is_file():
             print(f"WARNING: Helmet weights missing at '{helmet_weights_path}'. Using base model for fallback testing.")
             helmet_weights_path = weights_path
+
+        
+        lp_weights_path = self.model_dir / "license_plate_yolov8.pt"
+        if not lp_weights_path.is_file():
+            raise FileNotFoundError(
+                f"License plate model missing at '{lp_weights_path}'"
+            )
+        self.lp_detector = LPDetector(
+            weights_path=lp_weights_path,
+            conf_threshold=0.25,
+            imgsz=960,
+        )
+        self.ocr_reader = OCRReader()
 
         # This is detection of bikes / riders, assosiation and helmet detection
         self.bike_detector = BikeDetector(weights_path=weights_path, conf_threshold=0.2, imgsz=960)
@@ -98,11 +113,26 @@ class TrafficViolationDetector:
 
                 # A violation occurs if more than 2 riders, OR if someone is missing a helmet
                 if num_riders > 2 or helmet_violations > 0:
+                    bike_crop = crop_xyxy(image_bgr, g["bike_bbox"])
+
+                    plate_preds = self.lp_detector.predict(bike_crop)
+
+                    plate_text = ""
+
+                    if plate_preds:
+                        best_plate = max(plate_preds, key=lambda x: x[1])
+
+                        plate_bbox = best_plate[0]
+
+                        plate_crop = crop_xyxy(bike_crop, plate_bbox)
+
+                        plate_text = self.ocr_reader.extract_text(plate_crop)
+
                     violations.append(
                         {
                             "num_riders": num_riders,
                             "helmet_violations": helmet_violations,
-                            "license_plate": "",
+                            "license_plate": plate_text,
                         }
                     )
 
