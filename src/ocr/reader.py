@@ -1,4 +1,7 @@
+import cv2
 from paddleocr import PaddleOCR
+from pathlib import Path
+import traceback
 
 from src.ocr.preprocessing import (
     get_grayscale,
@@ -12,24 +15,29 @@ from src.ocr.preprocessing import (
 
 class OCRReader:
     def __init__(self):
+        model_dir=Path("./models"),
         self.ocr = PaddleOCR(
-            use_textline_orientation=True,
-            lang='en'
+                use_textline_orientation=False,
+                lang='en',
+                det_model_dir=str(model_dir / "PP-OCRv5_server_det"),
+                rec_model_dir=str(model_dir / "PP-OCRv5_mobile_rec"),
         )
 
     def extract_text(self, plate_crop):
         try:
-            gray = get_grayscale(plate_crop)
+            #gray = get_grayscale(plate_crop)
 
-            scaled = scale_image(gray)
+            scaled = scale_image(plate_crop)
 
             denoised = remove_noise(scaled)
 
-            thresh = thresholding(denoised)
+            #thresh = thresholding(denoised)
 
-            morphed = closing(thresh)
+            #morphed = closing(thresh)
 
-            processed = deskew(morphed)
+            processed = denoised
+            # if(len(processed.shape) == 2):
+            #     processed = cv2.cvtColor(processed, cv2.COLOR_GRAY2BGR)
             
             results = self.ocr.predict(processed)
 
@@ -58,4 +66,5 @@ class OCRReader:
 
         except Exception as e:
             print(f"OCR failed: {e}")
+            traceback.print_exc()
             return ""

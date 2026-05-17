@@ -12,7 +12,7 @@ from src.utils.image import load_image_bgr, crop_xyxy, enhance_image_for_detecti
 import numpy as np
 import cv2
 from src.detection.license_plate import LPDetector
-from src.ocr.reader import OCRReader
+from src.ocr.easy_ocr import OCRReader
 
 
 class TrafficViolationDetector:

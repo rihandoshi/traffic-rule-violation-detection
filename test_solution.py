@@ -6,7 +6,7 @@ def test():
     print("Initializing TrafficViolationDetector...")
     detector = TrafficViolationDetector(model_dir="./models")
     
-    image_path = "test_images/2.jpg"
+    image_path = "test_images/9.jpeg"
     print(f"\nRunning prediction on {image_path}...")
     
     result = detector.predict(image_path)

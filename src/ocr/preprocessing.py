@@ -13,6 +13,8 @@ def preprocess_image(image_path):
 
 def deskew(image):
     co_ords = np.column_stack(np.where(image > 0))
+    if(len(co_ords) == 0):
+        return image
     angle = cv2.minAreaRect(co_ords)[-1]
     if angle < -45:
         angle = -(90 + angle)
