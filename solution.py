@@ -21,13 +21,13 @@ class TrafficViolationDetector:
         model_dir: path to directory containing model weights.
         """
         self.model_dir = Path(model_dir)
-        weights_path = self.model_dir / "yolov8s.pt"
+        weights_path = self.model_dir / "yolov8m.pt"
         if not weights_path.is_file():
             raise FileNotFoundError(
-                f"Expected weights at '{weights_path}'. Put yolov8s.pt in models/."
+                f"Expected weights at '{weights_path}'. Put yolov8m.pt in models/."
             )
             
-        helmet_weights_path = self.model_dir / "helmet_yolov8n.pt"
+        helmet_weights_path = self.model_dir / "helmet_yolov8s.pt"
         if not helmet_weights_path.is_file():
             print(f"WARNING: Helmet weights missing at '{helmet_weights_path}'. Using base model for fallback testing.")
             helmet_weights_path = weights_path
